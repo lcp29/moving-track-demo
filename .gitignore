@@ -39,3 +39,6 @@ sysinfo.txt
 .DS_Store
 .bak
 .BAK
+
+# JetBrains stuff
+.idea/
