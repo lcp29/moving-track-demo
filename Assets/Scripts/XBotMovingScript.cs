@@ -2,17 +2,20 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[RequireComponent(typeof(Animator))]
 public class XBotMovingScript : MonoBehaviour
 {
-    // Start is called before the first frame update
+    private Animator _animator;
     void Start()
     {
-        
+        // Getting current animator
+        _animator = GetComponent<Animator>();
     }
 
-    // Update is called once per frame
     void Update()
     {
-        
+        float axisV = Input.GetAxis("Vertical");
+        transform.position += Time.deltaTime * axisV * 5 * transform.forward;
+        _animator.SetFloat("movingSpeed", axisV * 5);
     }
 }
