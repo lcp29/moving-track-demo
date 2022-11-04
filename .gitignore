@@ -43,6 +43,6 @@ sysinfo.txt
 # JetBrains stuff
 .idea/
 
-# lap's private stuff
+# helmholtz's private stuff
 /Assets/Characters/Ying/
 /Assets/Characters/Ying.meta
