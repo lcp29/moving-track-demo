@@ -161,6 +161,7 @@ GameObject:
   - component: {fileID: 4151813653550462703}
   - component: {fileID: 4151813653550462701}
   - component: {fileID: 4151813653550462700}
+  - component: {fileID: 934548727}
   m_Layer: 0
   m_Name: XBotRoot
   m_TagString: Untagged
@@ -221,6 +222,22 @@ MonoBehaviour:
   m_MovementHorizontalSpeed: 1.4
   m_PlayerCamera: {fileID: 4151813652762365662}
   m_MoveWithMouse: 1
+--- !u!54 &934548727
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4151813653550462702}
+  serializedVersion: 2
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1001 &4151813652751644403
 PrefabInstance:
   m_ObjectHideFlags: 0
