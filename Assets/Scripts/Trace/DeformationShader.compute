@@ -1,0 +1,116 @@
+#pragma kernel surfaceDeform;
+#pragma kernel clearRT;
+#pragma kernel refillSurface;
+
+#include "TracingCommonConstants.hlsl"
+
+float3 _PlayerPosition;
+float3 _FootPosition;
+float _Time;
+float _DeltaTime;
+RWTexture2D<float2> _TraceHeightmap;
+RWTexture2D<float> _TimerMap;
+
+uint2 worldPosToTexturePos(float2 worldPos)
+{
+    // 32 m grids
+    // -x-z corner of 
+    float2 xzBias = _PlayerPosition.xz - fmod(_PlayerPosition.xz, GRID_SIZE);
+    float2 mainGridPos = worldPos - xzBias;
+    mainGridPos.x = mainGridPos.x < 0 ? mainGridPos.x + GRID_SIZE : mainGridPos.x;
+    mainGridPos.y = mainGridPos.y < 0 ? mainGridPos.y + GRID_SIZE : mainGridPos.y;
+    // 32 x 32 = 1024
+    return clamp(uint2(mainGridPos * RES_GRID_SIZE), 0, 1024);
+}
+
+float2 footDispatchIdToWorldPos(float2 leftBottomWorldPos, int2 dispatchId)
+{
+    return leftBottomWorldPos + dispatchId * TEXEL_SIZE;
+}
+
+float2 refillDispatchIdToWorldPos(int2 dispatchId)
+{
+    float2 xzBias = _PlayerPosition.xz - fmod(_PlayerPosition.xz, GRID_SIZE);
+    float2 positionInGrid = xzBias + dispatchId * TEXEL_SIZE;
+    float2 rPosToPlayer = positionInGrid - _PlayerPosition.xz;
+    if (rPosToPlayer.x > GRID_SIZE_2)
+        rPosToPlayer.x -= GRID_SIZE;
+    else if (rPosToPlayer.x < - GRID_SIZE_2)
+        rPosToPlayer.x += GRID_SIZE;
+    if (rPosToPlayer.y > GRID_SIZE_2)
+        rPosToPlayer.y -= GRID_SIZE;
+    else if (rPosToPlayer.y < - GRID_SIZE_2)
+        rPosToPlayer.y += GRID_SIZE;
+    return _PlayerPosition.xz + rPosToPlayer;
+}
+
+float2 refillDispatchIdToRelPosToPlayer(int2 dispatchId)
+{
+    float2 xzBias = _PlayerPosition.xz - fmod(_PlayerPosition.xz, GRID_SIZE);
+    float2 positionInGrid = xzBias + dispatchId * TEXEL_SIZE;
+    float2 rPosToPlayer = positionInGrid - _PlayerPosition.xz;
+    if (rPosToPlayer.x > GRID_SIZE_2)
+        rPosToPlayer.x -= GRID_SIZE;
+    else if (rPosToPlayer.x < - GRID_SIZE_2)
+        rPosToPlayer.x += GRID_SIZE;
+    if (rPosToPlayer.y > GRID_SIZE_2)
+        rPosToPlayer.y -= GRID_SIZE;
+    else if (rPosToPlayer.y < - GRID_SIZE_2)
+        rPosToPlayer.y += GRID_SIZE;
+    return rPosToPlayer;
+}
+
+void allClear(uint2 id)
+{
+    _TraceHeightmap[id.xy] = float2(1e100, 1e100);
+    _TimerMap[id.xy] = 1e100;
+}
+
+[numthreads(8,8,1)]
+void surfaceDeform(uint3 id : SV_DispatchThreadID)
+{
+    // if (_FootPosition.x - _PlayerPosition.x > 8 &&
+    //     _FootPosition.y - _PlayerPosition.y > 8)
+    //         return;
+    // align (0, 0) to bottom left corner (-x-z corner)
+    const float2 alignedFootPosition = _FootPosition.xz - fmod(_FootPosition.xz, TEXEL_SIZE);
+    const float2 leftBottomWorldPos = alignedFootPosition - GRID_RES_2 * TEXEL_SIZE;
+    const float2 worldPosition = footDispatchIdToWorldPos(leftBottomWorldPos, id.xy);
+    const float2 rPosToFoot = worldPosition - _FootPosition.xz;
+    const float distanceToFootSquared = dot(rPosToFoot, rPosToFoot);
+    const float deformedHeight = distanceToFootSquared * _FootSize;
+    const uint2 mainGridPos = worldPosToTexturePos(worldPosition);
+    float2 originalTexInfo = _TraceHeightmap.Load(mainGridPos);
+    if (originalTexInfo.x >= deformedHeight)
+    {
+        _TraceHeightmap[mainGridPos] = float2(deformedHeight, _FootPosition.y);
+        _TimerMap[mainGridPos] = _Time;
+    }
+}
+
+[numthreads(8,8,1)]
+void clearRT(uint3 id : SV_DispatchThreadID)
+{
+    allClear(id.xy);
+}
+
+[numthreads(8,8,1)]
+void refillSurface(uint3 id : SV_DispatchThreadID)
+{
+    float2 originalTexInfo = _TraceHeightmap.Load(id.xy);
+    const float timerMapInfo = _TimerMap.Load(id.xy);
+    if (_Time - timerMapInfo > CLEAR_TIME)
+    {
+        allClear(id.xy);
+        return;
+    }
+    float refillRate = REFILL_RATE;
+    float2 rPosToPlayer = refillDispatchIdToRelPosToPlayer(id.xy);
+    float refillExp = max(abs(rPosToPlayer.x), abs(rPosToPlayer.y));
+    if (refillExp > GRID_SIZE_2 - BOUND_WIDTH)
+    {
+        refillRate += pow(3, refillExp - (GRID_SIZE_2 - BOUND_WIDTH)) - 1;
+    }
+    originalTexInfo.x += _DeltaTime * refillRate;
+    _TraceHeightmap[id.xy] = originalTexInfo;
+}
