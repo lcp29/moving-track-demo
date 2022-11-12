@@ -26,7 +26,7 @@ public class PlayerTraceGenerator : MonoBehaviour
 
     private void Awake()
     {
-        Application.targetFrameRate = 60;
+        //Application.targetFrameRate = 60;
         if (TraceHeightmapManager.traceHeightmap == null)
         {
             // 1024 x 1024 16 m x 16 m

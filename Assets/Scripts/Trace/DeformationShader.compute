@@ -9,6 +9,7 @@ float3 _FootPosition;
 float _Time;
 float _DeltaTime;
 RWTexture2D<float2> _TraceHeightmap;
+RWTexture2D<float2> _NormalMap;
 RWTexture2D<float> _TimerMap;
 
 uint2 worldPosToTexturePos(float2 worldPos)
@@ -78,7 +79,7 @@ void surfaceDeform(uint3 id : SV_DispatchThreadID)
     const float2 worldPosition = footDispatchIdToWorldPos(leftBottomWorldPos, id.xy);
     const float2 rPosToFoot = worldPosition - _FootPosition.xz;
     const float distanceToFootSquared = dot(rPosToFoot, rPosToFoot);
-    const float deformedHeight = distanceToFootSquared * _FootSize;
+    const float deformedHeight = distanceToFootSquared * FOOT_SIZE;
     const uint2 mainGridPos = worldPosToTexturePos(worldPosition);
     float2 originalTexInfo = _TraceHeightmap.Load(mainGridPos);
     if (originalTexInfo.x >= deformedHeight)
@@ -98,6 +99,8 @@ void clearRT(uint3 id : SV_DispatchThreadID)
 void refillSurface(uint3 id : SV_DispatchThreadID)
 {
     float2 originalTexInfo = _TraceHeightmap.Load(id.xy);
+    if (originalTexInfo.x > 1e99)
+        return;
     const float timerMapInfo = _TimerMap.Load(id.xy);
     if (_Time - timerMapInfo > CLEAR_TIME)
     {
