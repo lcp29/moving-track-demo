@@ -1,18 +1,10 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading;
-using Newtonsoft.Json.Serialization;
 using Unity.Burst;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
-using Unity.Jobs.LowLevel.Unsafe;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.UI;
 
 [RequireComponent(typeof(MeshFilter))]
 public class DeformableMesh : MonoBehaviour
@@ -22,7 +14,7 @@ public class DeformableMesh : MonoBehaviour
     private Mesh originalMesh;
     private Mesh tessellatedMesh;
 
-    private static readonly Vector3 playerBoundSize = new Vector3(16, 100, 16);
+    private static readonly Vector3 playerBoundSize = new Vector3(4, 100, 4); // should be (16,100,16) just for test
 
     struct MeshVertexAttributes
     {
@@ -91,20 +83,19 @@ public class DeformableMesh : MonoBehaviour
     }
 
     [BurstCompile(CompileSynchronously = true)]
-    struct AssembleVertexAttributesJob : IJob
+    struct AssembleVertexAttributesJob : IJobFor
     {
         [ReadOnly] public NativeArray<Vector3> originalVerticesPosition;
         [ReadOnly] public NativeArray<Vector2> originalVerticesUV;
         [WriteOnly] public NativeArray<MeshVertexAttributes> originalVerticesAttributes;
 
-        public void Execute()
+        public void Execute(int i)
         {
-            for (int i = 0; i < originalVerticesPosition.Length; ++i)
-                originalVerticesAttributes[i] = new MeshVertexAttributes
-                {
-                    position = originalVerticesPosition[i],
-                    uv = originalVerticesUV[i]
-                };
+            originalVerticesAttributes[i] = new MeshVertexAttributes
+            {
+                position = originalVerticesPosition[i],
+                uv = originalVerticesUV[i]
+            };
         }
     }
 
@@ -123,7 +114,7 @@ public class DeformableMesh : MonoBehaviour
             originalVerticesPosition = originalVertexPositions,
             originalVerticesUV = originalVertexUVs,
             originalVerticesAttributes = originalVertexAttributes
-        }.Schedule(assembleVertexAttributesHandle);
+        }.Schedule(originalVertexAttributes.Length, assembleVertexAttributesHandle);
         assembleVertexAttributesHandle.Complete();
         Debug.Log(originalVertexAttributes.Length);
         originalVertexPositions.Dispose();
@@ -182,12 +173,16 @@ public class DeformableMesh : MonoBehaviour
             firstCullingHandle.Complete();
 
             // getting vertex count
-            for (; tessIndexArrayLength < tessellationIndices.Length && tessellationIndices[tessIndexArrayLength] != Int32.MaxValue; ++tessIndexArrayLength) ;
+            for (;
+                 tessIndexArrayLength < tessellationIndices.Length &&
+                 tessellationIndices[tessIndexArrayLength] != Int32.MaxValue;
+                 ++tessIndexArrayLength) ;
             noTessIndexArrayLength = originalIndices.Length - tessIndexArrayLength;
 
             // setting submeshes
             tessellatedMesh.SetIndexBufferParams(tessIndexArrayLength, IndexFormat.UInt32);
-            tessellatedMesh.SetIndexBufferData(tessellationIndices, 0, 0, tessIndexArrayLength, MeshUpdateFlags.DontValidateIndices);
+            tessellatedMesh.SetIndexBufferData(tessellationIndices, 0, 0, tessIndexArrayLength,
+                MeshUpdateFlags.DontValidateIndices);
             tessellatedMesh.SetSubMesh(0, new SubMeshDescriptor(0, tessIndexArrayLength));
             // without this call ⬇️ it will cause culling failure and occasional surface disappearance
             tessellatedMesh.RecalculateBounds();
