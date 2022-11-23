@@ -9,7 +9,6 @@ float3 _FootPosition;
 float _Time;
 float _DeltaTime;
 RWTexture2D<float2> _TraceHeightmap;
-RWTexture2D<float2> _NormalMap;
 RWTexture2D<float> _TimerMap;
 
 uint2 worldPosToTexturePos(float2 worldPos)
@@ -21,7 +20,7 @@ uint2 worldPosToTexturePos(float2 worldPos)
     mainGridPos.x = mainGridPos.x < 0 ? mainGridPos.x + GRID_SIZE : mainGridPos.x;
     mainGridPos.y = mainGridPos.y < 0 ? mainGridPos.y + GRID_SIZE : mainGridPos.y;
     // 32 x 32 = 1024
-    return clamp(uint2(mainGridPos * RES_GRID_SIZE), 0, 1024);
+    return clamp(uint2(mainGridPos * RES_GRID_SIZE), 0, 1023);
 }
 
 float2 footDispatchIdToWorldPos(float2 leftBottomWorldPos, int2 dispatchId)

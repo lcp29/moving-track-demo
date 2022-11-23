@@ -8,19 +8,34 @@ Shader "Tracing/DeformableSurfaceLit"
     }
     SubShader
     {
-        Tags
-        {
-            "RenderType"="Opaque" "Lightmode"="UniversalForward"
-        }
-
         Pass
         {
+            Tags
+            {
+                "RenderType"="Opaque" "Lightmode"="UniversalForward"
+            }
+            
             HLSLPROGRAM
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
             #pragma vertex DeformableLitPassVertex
             #pragma fragment DeformableLitPassFragment
 
             #include "DeformableSurfaceLitForward.hlsl"
+            ENDHLSL
+        }
+        
+        Pass
+        {
+            Tags
+            {
+                "Lightmode"="ShadowCaster"
+            }
+            
+            HLSLPROGRAM
+            #pragma vertex DeformableShadowCasterVertex
+            #pragma fragment DeformableShadowCasterFragment
+            
+            #include "DeformableSurfaceShadowCaster.hlsl"
             ENDHLSL
         }
     }

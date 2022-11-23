@@ -1,0 +1,51 @@
+#pragma kernel tessTriangleCulling;
+
+#include "TracingCommonConstants.hlsl"
+
+RWStructuredBuffer<int> _CullResult;
+ByteAddressBuffer _OriginalIndexBuffer;
+ByteAddressBuffer _OriginalVertexBuffer;
+int _TessTriangleCount;
+int _VertexBufferStride;
+float _CullBoundRadius;
+float4x4 _FatherTransform;
+Texture2D<float2> _TraceHeightmap;
+float3 _PlayerPosition;
+
+uint2 worldPosToTexturePos(float2 worldPos)
+{
+    // 32 m grids
+    // -x-z corner of 
+    float2 xzBias = _PlayerPosition.xz - fmod(_PlayerPosition.xz, GRID_SIZE);
+    float2 mainGridPos = worldPos - xzBias;
+    mainGridPos.x = mainGridPos.x < 0 ? mainGridPos.x + GRID_SIZE : mainGridPos.x;
+    mainGridPos.y = mainGridPos.y < 0 ? mainGridPos.y + GRID_SIZE : mainGridPos.y;
+    // 32 x 32 = 1024
+    return clamp(uint2(mainGridPos * RES_GRID_SIZE), 0, 1023);
+}
+
+[numthreads(8,1,1)]
+void tessTriangleCulling(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)_TessTriangleCount)
+        return;
+    uint3 vertexIndices = _OriginalIndexBuffer.Load3(id.x * 3 * 4);
+    for (int i = 0; i < 3; ++i)
+    {
+        uint vertexIndex = vertexIndices[i];
+        uint3 positionInt =
+            _OriginalVertexBuffer.Load3(vertexIndex * _VertexBufferStride);
+        float4 position = float4(asfloat(positionInt), 1.0f);
+        position = mul(_FatherTransform, position);
+        if (max(abs(position.x - _PlayerPosition.x), abs(position.z - _PlayerPosition.z)) > _CullBoundRadius)
+            continue;
+        uint2 heightmapCoord = worldPosToTexturePos(position.xz);
+        float2 heightmapValid = _TraceHeightmap[heightmapCoord];
+        if (heightmapValid.x < 1e99)
+        {
+            _CullResult[id.x] = 1;
+            return;
+        }
+    }
+    _CullResult[id.x] = 0;
+}

@@ -3,9 +3,11 @@ float3 _PlayerPosition;
 sampler2D _TraceHeightmap;
 float4 _TraceHeightmap_ST;
 
+
+
 bool haveDeformation(float2 worldPositionXZ)
 {
-    float2 relPosToPlayer = worldPositionXZ - _PlayerPosition;
+    float2 relPosToPlayer = worldPositionXZ - _PlayerPosition.xz;
     if (abs(relPosToPlayer.x) > GRID_SIZE_2 ||
         abs(relPosToPlayer.y) > GRID_SIZE_2)
         return false;
@@ -22,4 +24,13 @@ float2 worldPosToTextureUV(float2 worldPos)
     mainGridPos.y = mainGridPos.y < 0 ? mainGridPos.y + GRID_SIZE : mainGridPos.y;
     // 32 x 32 = 1024
     return mainGridPos / GRID_SIZE;
+}
+
+float heightMapToHeight(float height, float footHeight, float meshHeight)
+{
+    if (height < meshHeight - BUMP_HEIGHT)
+        return height;
+    float distanceToFoot = sqrt((height - footHeight) / FOOT_SIZE);
+    
+    return 0;
 }

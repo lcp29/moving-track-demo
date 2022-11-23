@@ -9,7 +9,8 @@
 #define REFILL_RATE     0.2
 #define BOUND_WIDTH     2
 
-#define POM_STEPPING_DISTANCE 0.04
+#define POM_STEPPING_DISTANCE 0.01
+#define BUMP_HEIGHT 0.02
 
 // to be used as variable in the future
 #define FOOT_SIZE  10

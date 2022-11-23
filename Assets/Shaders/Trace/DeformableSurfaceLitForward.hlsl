@@ -46,22 +46,28 @@ Varyings DeformableLitPassVertex(Attributes input)
     o.tangentWS = TransformObjectToWorldDir(input.tangentOS.xyz);
     o.bitangentWS = cross(o.normalWS, o.tangentWS) * input.tangentOS.w;
     o.baseUV = TRANSFORM_TEX(input.baseUV, _MainTex);
-    
+
     return o;
 }
 
 FragmentInputData getInputData(Varyings input)
 {
     FragmentInputData ret;
-    
 }
 
 half4 DeformableLitPassFragment(Varyings input) : SV_Target
 {
+    half3 ret;
     if (haveDeformation(input.positionWS.xz))
     {
-        float2 ht = tex2D(_TraceHeightmap, worldPosToTextureUV(input.positionWS.xz)) / 10;
-        float4 ret = float4(ht, 0.0f, 1.0f);
+        float3 marchDirWS = POM_STEPPING_DISTANCE * normalize(input.positionWS - _WorldSpaceCameraPos);
+        float2 marchDirTS = marchDirWS.xz / (TEXEL_SIZE * 1024);
+        float2 marchOriginTS = worldPosToTextureUV(input.positionWS.xz);
+        // const step marching
+        float3 intersectPointWS = input.positionWS;
+        float2 intersectPointTS = marchOriginTS;
+        float lastHeight = tex2D(_TraceHeightmap, marchOriginTS);
+        float height = tex2D(_TraceHeightmap, marchOriginTS + marchDirTS);
     }
     Light mainLight = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
     half3 albedo = tex2D(_MainTex, input.baseUV);
@@ -70,7 +76,11 @@ half4 DeformableLitPassFragment(Varyings input) : SV_Target
         mainLight.color *
         mainLight.shadowAttenuation *
         saturate(dot(normalize(input.normalWS), normalize(mainLight.direction)));
-    return half4(diffuse, 1.0f);
+    half3 ambient = 0.1f * albedo;
+    ret = diffuse + ambient;
+    // float2 ht = tex2D(_TraceHeightmap, worldPosToTextureUV(input.positionWS.xz)) / 10;
+    // float4 ret = float4(ht, 0.0f, 1.0f);
+    return half4(ret, 1.0f);
 }
 
 #endif
